@@ -1,0 +1,275 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row g-3 g-xl-4 align-items-start">
+    <aside class="col-12 col-xl-4">
+        <form class="tool-panel input-panel" method="post" enctype="multipart/form-data">
+            <div class="panel-heading">
+                <div>
+                    <h1>赔率分析工作台</h1>
+                    <p>体彩赔率与国外比分盘对齐后计算EV和Kelly。</p>
+                </div>
+                <button class="btn btn-primary icon-text" type="submit">
+                    <i data-lucide="calculator"></i>
+                    <span>启动计算</span>
+                </button>
+            </div>
+
+            {% if error %}
+            <div class="alert alert-danger compact-alert" role="alert">{{ error }}</div>
+            {% endif %}
+
+            <div class="form-stack">
+                <section class="entry-section">
+                    <div class="section-title">
+                        <h2>体彩赔率</h2>
+                        <span>China Sports Lottery</span>
+                    </div>
+                    <div class="odds-entry-table" data-entry-table>
+                        <div class="entry-table-head">
+                            <span>比分</span>
+                            <span>赔率</span>
+                            <span></span>
+                        </div>
+                        <div class="entry-table-body" data-entry-body>
+                            {% for entry in lottery_table_rows %}
+                            <div class="entry-row">
+                                <input class="form-control" type="text" name="lottery_scores[]" value="{{ entry.score }}" placeholder="0:0" inputmode="numeric">
+                                <input class="form-control" type="number" name="lottery_odds_values[]" value="{{ entry.odds }}" placeholder="8.50" min="1.01" step="0.01">
+                                <button class="btn btn-outline-secondary icon-button" type="button" data-remove-row aria-label="删除体彩赔率行">
+                                    <i data-lucide="trash-2"></i>
+                                </button>
+                            </div>
+                            {% endfor %}
+                        </div>
+                        <button class="btn btn-outline-primary icon-text add-row-button" type="button" data-add-row data-score-name="lottery_scores[]" data-odds-name="lottery_odds_values[]">
+                            <i data-lucide="plus"></i>
+                            <span>添加行</span>
+                        </button>
+                    </div>
+                    <label class="file-picker">
+                        <i data-lucide="file-up"></i>
+                        <span>CSV导入</span>
+                        <input type="file" name="lottery_csv" accept=".csv,text/csv">
+                    </label>
+                </section>
+
+                <section class="entry-section">
+                    <div class="section-title">
+                        <h2>国外赔率</h2>
+                        <span>Pinnacle / Betfair / Odds API</span>
+                    </div>
+                    <div class="odds-entry-table" data-entry-table>
+                        <div class="entry-table-head">
+                            <span>比分</span>
+                            <span>赔率</span>
+                            <span></span>
+                        </div>
+                        <div class="entry-table-body" data-entry-body>
+                            {% for entry in foreign_table_rows %}
+                            <div class="entry-row">
+                                <input class="form-control" type="text" name="foreign_scores[]" value="{{ entry.score }}" placeholder="0:0" inputmode="numeric">
+                                <input class="form-control" type="number" name="foreign_odds_values[]" value="{{ entry.odds }}" placeholder="8.10" min="1.01" step="0.01">
+                                <button class="btn btn-outline-secondary icon-button" type="button" data-remove-row aria-label="删除国外赔率行">
+                                    <i data-lucide="trash-2"></i>
+                                </button>
+                            </div>
+                            {% endfor %}
+                        </div>
+                        <button class="btn btn-outline-primary icon-text add-row-button" type="button" data-add-row data-score-name="foreign_scores[]" data-odds-name="foreign_odds_values[]">
+                            <i data-lucide="plus"></i>
+                            <span>添加行</span>
+                        </button>
+                    </div>
+                    <div class="row g-2 align-items-center">
+                        <div class="col-12 col-sm-6">
+                            <label class="file-picker w-100">
+                                <i data-lucide="file-up"></i>
+                                <span>CSV导入</span>
+                                <input type="file" name="foreign_csv" accept=".csv,text/csv">
+                            </label>
+                        </div>
+                        <div class="col-12 col-sm-6">
+                            <select class="form-select" name="provider" aria-label="API Provider">
+                                {% for value, label in providers %}
+                                    <option value="{{ value }}" {% if provider == value %}selected{% endif %}>{{ label }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-check form-switch api-switch">
+                        <input class="form-check-input" type="checkbox" role="switch" name="use_example_api" value="1" id="useExampleApi">
+                        <label class="form-check-label" for="useExampleApi">启用API导入</label>
+                    </div>
+                </section>
+
+                <section class="entry-section">
+                    <div class="section-title">
+                        <h2>筛选与排序</h2>
+                        <span>Value Filter</span>
+                    </div>
+                    <div class="row g-2">
+                        <div class="col-12">
+                            <label class="form-label" for="probabilityMode">概率模式</label>
+                            <select class="form-select" id="probabilityMode" name="probability_mode">
+                                {% for value, label in probability_mode_options %}
+                                    <option value="{{ value }}" {% if probability_mode == value %}selected{% endif %}>{{ label }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-12 col-sm-6">
+                            <label class="form-label" for="evThreshold">EV阈值</label>
+                            <select class="form-select" id="evThreshold" name="ev_threshold">
+                                {% for value, label in threshold_options %}
+                                    <option value="{{ value }}" {% if ev_threshold == value %}selected{% endif %}>{{ label }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-12 col-sm-6">
+                            <label class="form-label" for="sortBy">结果排序</label>
+                            <select class="form-select" id="sortBy" name="sort_by">
+                                {% for value, label in sort_options %}
+                                    <option value="{{ value }}" {% if sort_by == value %}selected{% endif %}>{{ label }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+                </section>
+            </div>
+        </form>
+    </aside>
+
+    <section class="col-12 col-xl-8">
+        {% if has_results %}
+        <div class="summary-grid">
+            <div class="metric">
+                <span>匹配比分</span>
+                <strong>{{ stats.matched_scores }}</strong>
+            </div>
+            <div class="metric">
+                <span>价值项</span>
+                <strong>{{ stats.value_count }}</strong>
+            </div>
+            <div class="metric">
+                <span>最高EV</span>
+                <strong>{{ "%.2f%%"|format(stats.best_ev * 100) }}</strong>
+            </div>
+            <div class="metric">
+                <span>最高Kelly</span>
+                <strong>{{ "%.2f%%"|format(stats.best_kelly * 100) }}</strong>
+            </div>
+            <div class="metric">
+                <span>原始概率合计</span>
+                <strong>{{ "%.2f%%"|format(stats.foreign_raw_total * 100) }}</strong>
+            </div>
+        </div>
+
+        <div class="tool-panel mt-3">
+            <div class="table-toolbar">
+                <div>
+                    <h2>对比分析</h2>
+                    <p>{{ "使用国外赔率去水位概率计算体彩EV。" if probability_mode == "devig" else "使用国外赔率原始隐含概率计算体彩EV。" }}</p>
+                </div>
+                <div class="toolbar-badges">
+                    <span class="threshold-badge">{{ "完整市场去水" if probability_mode == "devig" else "局部不去水" }}</span>
+                    <span class="threshold-badge">EV阈值 {{ "%.0f%%"|format(ev_threshold * 100) }}</span>
+                </div>
+            </div>
+            <div class="highlight-legend">
+                <span><i class="legend-swatch legend-ev"></i>EV</span>
+                <span><i class="legend-swatch legend-kelly"></i>Kelly</span>
+                <span><i class="legend-swatch legend-probability"></i>概率</span>
+            </div>
+            <div class="table-responsive result-table-wrap">
+                <table class="table align-middle result-table">
+                    <thead>
+                        <tr>
+                            <th>比分</th>
+                            <th>体彩赔率</th>
+                            <th>国外赔率</th>
+                            <th>原始概率</th>
+                            <th>{{ "去水位概率" if probability_mode == "devig" else "计算概率" }}</th>
+                            <th>EV</th>
+                            <th>Full Kelly</th>
+                            <th>Half Kelly</th>
+                            <th>Quarter Kelly</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for row in rows %}
+                        {% set row_highlights = highlights.get(row.score, {}) %}
+                        <tr class="{% if row.is_value %}value-row{% endif %}">
+                            <td><span class="score-pill">{{ row.score }}</span></td>
+                            <td>{{ "%.2f"|format(row.lottery_odds) }}</td>
+                            <td>{{ "%.2f"|format(row.foreign_odds) }}</td>
+                            <td>{{ "%.2f%%"|format(row.raw_probability * 100) }}</td>
+                            <td class="{{ row_highlights.get('probability', '') }}">{{ "%.2f%%"|format(row.fair_probability * 100) }}</td>
+                            <td class="{% if row.ev > 0 %}text-positive{% else %}text-negative{% endif %} {{ row_highlights.get('ev', '') }}">
+                                {{ "%+.2f%%"|format(row.ev * 100) }}
+                            </td>
+                            <td class="{{ row_highlights.get('kelly', '') }}">{{ "%.2f%%"|format(row.full_kelly * 100) }}</td>
+                            <td>{{ "%.2f%%"|format(row.half_kelly * 100) }}</td>
+                            <td>{{ "%.2f%%"|format(row.quarter_kelly * 100) }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="chart-grid mt-3">
+            <section class="tool-panel chart-panel">
+                <div class="chart-title">
+                    <h2>EV排名</h2>
+                    <span>Expected Value</span>
+                </div>
+                <div class="chart-canvas">
+                    <canvas id="evChart"></canvas>
+                </div>
+            </section>
+            <section class="tool-panel chart-panel">
+                <div class="chart-title">
+                    <h2>概率分布</h2>
+                    <span>Fair Probability</span>
+                </div>
+                <div class="chart-canvas">
+                    <canvas id="probabilityChart"></canvas>
+                </div>
+            </section>
+            <section class="tool-panel chart-panel">
+                <div class="chart-title">
+                    <h2>Kelly建议</h2>
+                    <span>Stake Fraction</span>
+                </div>
+                <div class="chart-canvas">
+                    <canvas id="kellyChart"></canvas>
+                </div>
+            </section>
+            <section class="tool-panel chart-panel">
+                <div class="chart-title">
+                    <h2>赔率散点</h2>
+                    <span>Lottery vs Foreign</span>
+                </div>
+                <div class="chart-canvas">
+                    <canvas id="scatterChart"></canvas>
+                </div>
+            </section>
+        </div>
+        {% else %}
+        <div class="tool-panel empty-state">
+            <i data-lucide="chart-no-axes-combined"></i>
+            <h2>暂无分析结果</h2>
+            <p>录入或导入两侧赔率后，点击启动计算。</p>
+        </div>
+        {% endif %}
+    </section>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+window.analysisRows = {{ rows | map_analysis_rows | tojson }};
+window.probabilityLabel = "{{ '去水位概率' if probability_mode == 'devig' else '计算概率' }}";
+</script>
+<script src="{{ url_for('static', filename='js/charts.js') }}"></script>
+{% endblock %}
